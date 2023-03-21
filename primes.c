@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     int numNodes = atoi(argv[7]);
 
     int type; // 0 for equal and 1 for unequal distribution of range
-    // for sub intervals
+    // for delegator sub intervals
     int start;
     int stop;
     int i;         // delegtor process count
@@ -275,6 +275,7 @@ int main(int argc, char *argv[])
                     else
                     {
                         wstart = wstop + 1;
+                        // if last worker node, make its stop number to be the stop number of the delegator node
                         if (j == numNodes - 1)
                         {
                             wstop = stop;
@@ -307,6 +308,7 @@ int main(int argc, char *argv[])
                 {
                     double real_time;
                     int tcheck = read(wdpipfdt[readend], &real_time, sizeof(double));
+                    // finished reading
                     if (tcheck == 0)
                     {
                         break;
@@ -321,6 +323,7 @@ int main(int argc, char *argv[])
                 {
                     int primenumber;
                     int bcheck = read(wdpipefd[readend], &primenumber, sizeof(int));
+                    // finished reading
                     if (bcheck == 0)
                     {
                         break;
@@ -364,13 +367,15 @@ int main(int argc, char *argv[])
             else
             {
                 start = stop + 1;
+                // if last node, make its stop to be the upper bound
                 if (i == numNodes - 1)
                 {
                     stop = upperbound;
                 }
                 else
                 {
-                    stop = start + rand() % (upperbound - start - (numNodes - (i + 1)) + 1);
+                    // upperbound - start = remaining range
+                    stop = start + rand() % (upperbound - start - (numNodes - i - 1) + 1);
                 }
             }
             // write it pipes
@@ -395,7 +400,7 @@ int main(int argc, char *argv[])
         {
             double current_time;
             timer_checker = read(drpipefdt[0], &current_time, sizeof(double));
-
+            // store first read value of current_time as minimum_time and update minimum_time later by comparison
             if (x == 0)
             {
                 minimum_time = current_time;
@@ -448,7 +453,7 @@ int main(int argc, char *argv[])
             printf("%d ", myprimes[k]);
         }
         printf("\n\nSTATS: \n");
-        //time is in ms
+        // time is in ms
         printf("Minimum Time = %f\n", minimum_time);
         printf("Maximum Time = %f\n", maximum_time);
         printf("Average Time = %f\n", average_time);
