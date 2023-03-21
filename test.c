@@ -6,10 +6,12 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <signal.h>
+#include <stdbool.h>
 
 #define readend 0
 #define writeend 1
 #define primeFD 1222
+#define timeFD 1233
 
 int number_signals1 = 0;
 int number_signals2 = 0;
@@ -83,6 +85,14 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // create pipe for delegator -> root used for sending execution time
+    int drpipefdt[2];
+    if (pipe(drpipefdt) == -1)
+    {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
     // create an array of pipes for each delegator process root -> delegator
     int rdpipefd[numNodes][2];
 
@@ -113,6 +123,7 @@ int main(int argc, char *argv[])
         {
             // printf("in delegator process %d\n", i);
             // close the read end of the pipe delegator -> root
+            close(drpipefdt[readend]);
             close(drpipefd[readend]);
             // close write end for root -> delegator
             close(rdpipefd[i][writeend]);
@@ -144,6 +155,14 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
 
+            // pipe to get times from worker -> delegator
+            int wdpipfdt[2];
+
+            if (pipe(wdpipfdt) == -1)
+            {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
             // for loop to create workers
             for (j = 0; j < numNodes; j++)
             {
@@ -195,9 +214,10 @@ int main(int argc, char *argv[])
                     close(dwpipefd[j][readend]);
                     // close reading end of worker -> del
                     close(wdpipefd[readend]);
+                    close(wdpipfdt[readend]);
 
                     dup2(wdpipefd[writeend], primeFD);
-
+                    dup2(wdpipfdt[writeend], timeFD);
                     // call executable based on worker type
                     if (primetype == 0)
                     {
@@ -264,13 +284,28 @@ int main(int argc, char *argv[])
             // delegator node after the for loop ends
             if (j == numNodes)
             {
+                close(wdpipfdt[writeend]);
                 // close write end worker -> del
                 close(wdpipefd[writeend]);
                 pid_t wpid;
                 int wstatus = 0;
 
+                while (true)
+                {
+                    double real_time;
+                    int tcheck = read(wdpipfdt[readend], &real_time, sizeof(double));
+
+                    // printf("read in delegator %d, value: %d\n", i, primenumber);
+                    if (tcheck == 0)
+                    {
+                        break;
+                    }
+                    // write it to root
+                    write(drpipefdt[writeend], &real_time, sizeof(double));
+                }
+                close(wdpipfdt[readend]);
                 // loop to read primes from all workers
-                while (1)
+                while (true)
                 {
                     int primenumber;
                     int bcheck = read(wdpipefd[readend], &primenumber, sizeof(int));
@@ -282,8 +317,10 @@ int main(int argc, char *argv[])
                     // write it to root
                     write(drpipefd[writeend], &primenumber, sizeof(int));
                 }
+                close(drpipefdt[writeend]);
                 close(wdpipefd[readend]);
                 close(drpipefd[writeend]);
+
                 while ((wpid = wait(&wstatus)) != -1)
                     ;
                 exit(0);
@@ -339,16 +376,36 @@ int main(int argc, char *argv[])
     // root process after for loop for forks - the main
     if (i == numNodes)
     {
+        close(drpipefdt[writeend]);
         close(drpipefd[writeend]);
         pid_t dpid;
+        double minimum_time, maximum_time, average_time;
         int dstatus = 0;
         int count = 0;
+        int timer_checker;
+        while (true)
+        {
+            double current_time;
+            timer_checker = read(drpipefdt[0], &current_time, sizeof(double));
 
+            if (timer_checker == 0)
+                break;
+            average_time = average_time + current_time;
+            if (current_time > maximum_time)
+            {
+                maximum_time = current_time;
+            }
+            if (current_time < minimum_time)
+            {
+                minimum_time = current_time;
+            }
+        }
+        close(drpipefdt[readend]);
         // array to store primes
         int myprimes[upperbound - lowerbound + 1];
 
         // wait for all children
-        while (1)
+        while (true)
         {
             int myprime;
             int bcheck = read(drpipefd[readend], &myprime, sizeof(int));
@@ -361,6 +418,8 @@ int main(int argc, char *argv[])
             count++;
         }
 
+        // average time calculator
+        average_time = average_time / count;
         // close read end
         close(drpipefd[readend]);
 
@@ -372,8 +431,12 @@ int main(int argc, char *argv[])
         {
             printf("Detected: %d\n", myprimes[k]);
         }
-        printf("Signals set via SIGUSR1 = %d\n", number_signals1);
-        printf("Signals set via SIGUSR2 = %d\n", number_signals2);
+        printf("Stats: \n");
+        printf("Min Time = %f\n", minimum_time);
+        printf("Max Time = %f\n", maximum_time);
+        printf("Average Time = %f\n", average_time);
+        printf("Signals caught via SIGUSR1 = %d\n", number_signals1);
+        printf("Signals caught via SIGUSR2 = %d\n", number_signals2);
         exit(0);
     }
 }
