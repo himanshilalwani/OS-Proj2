@@ -339,7 +339,6 @@ int main(int argc, char *argv[])
     // root process after for loop for forks - the main
     if (i == numNodes)
     {
-
         close(drpipefd[writeend]);
         pid_t dpid;
         int dstatus = 0;
