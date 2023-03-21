@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     // for sub intervals
     int start;
     int stop;
+    int i; //delegtor process count
     int primetype; // cicrular manner the function to use 0 is prime1 1 is prime2
 
     stop = upperbound - 1;
@@ -65,10 +66,10 @@ int main(int argc, char *argv[])
     // create an array of pipes for each delegator process root -> delegator
     int rdpipefd[numNodes][2];
 
-    printf("step1");
+    // printf("error check for input and pipe d->r\n");
 
     // create N delegator processes
-    for (int i = 0; i < numNodes; i++)
+    for (i = 0; i < numNodes; i++)
     {
         // create a pipe for each delegator process
         if (pipe(rdpipefd[i]) == -1)
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
 
         // create a new process (delegator)
         pid_t pid = fork();
+        // printf("created fork delegator\n");
 
         // check for errors creating the process
         if (pid == -1)
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
         // in the delegator process
         else if (pid == 0)
         {
+            // printf("in delegator process %d\n", i);
             // close the read end of the pipe delegator -> root
             close(drpipefd[readend]);
             // close write end for root -> delegator
@@ -97,6 +100,7 @@ int main(int argc, char *argv[])
             // reading the bounds for delegator
             read(rdpipefd[i][readend], &start, sizeof(int));
             read(rdpipefd[i][readend], &stop, sizeof(int));
+            // printf("read bound for delegator %d: start: %d stop: %d\n", i, start, stop);
 
             // close reading end
             close(rdpipefd[i][readend]);
@@ -104,12 +108,15 @@ int main(int argc, char *argv[])
             // create bounds for worker process
             int wstart = start;
             int wstop = start - 1;
+            int j;  // worker process count
 
             // pipe to get primes from worker -> delegator
             int wdpipefd[2];
 
             // array of pipes from delegator -> workers
             int dwpipefd[numNodes][2];
+
+            // printf("pipes w->d\n");
 
             if (pipe(wdpipefd) == -1)
             {
@@ -118,7 +125,7 @@ int main(int argc, char *argv[])
             }
 
             // for loop to create workers
-            for (int j = 0; j < numNodes; j++)
+            for (j = 0; j < numNodes; j++)
             {
                 // create a pipe for each worker process
                 if (pipe(dwpipefd[j]) == -1)
@@ -130,6 +137,8 @@ int main(int argc, char *argv[])
                 // forking
                 //  create a new process (delegator)
                 pid_t wpid = fork();
+                // printf("created fork worker\n");
+
                 if (wpid == -1)
                 {
                     perror("fork failure worker process");
@@ -141,6 +150,8 @@ int main(int argc, char *argv[])
                 // in worker process
                 if (wpid == 0)
                 {
+                    // printf("in worker process %d\n", j);
+
                     // close writing end for del -> work
                     close(dwpipefd[j][writeend]);
 
@@ -151,6 +162,7 @@ int main(int argc, char *argv[])
                     // read the ranges from delegator
                     read(dwpipefd[j][readend], &start, sizeof(int));
                     read(dwpipefd[j][readend], &stop, sizeof(int));
+                    // printf("read bound for worker %d: start: %d stop: %d\n", j, start, stop);
 
                     // covert int->string for passing in exec
                     sprintf(lb, "%d", start);
@@ -166,11 +178,15 @@ int main(int argc, char *argv[])
                     // call executable based on worker type
                     if (primetype == 0)
                     {
+                        // printf("running prime1 for worker %d\n",j);
                         execlp("./primes1", "primes1", lb, ub, NULL);
+                        // printf("finished running prime1 for worker %d\n",j);
                     }
                     else
                     {
+                        // printf("running prime2 for worker %d\n",j);
                         execlp("./primes2", "primes2", lb, ub, NULL);
+                        // printf("finished running prime2 for worker %d\n",j);
                     }
                     break;
                 }
@@ -178,7 +194,7 @@ int main(int argc, char *argv[])
                 else
                 {
                     // close the read end of del -> work
-                    close(dwpipefd[i][readend]);
+                    close(dwpipefd[j][readend]);
 
                     // check for distribution type
                     // equal intervals
@@ -188,7 +204,7 @@ int main(int argc, char *argv[])
                         int total_length = stop - start + 1;
                         int subrange_length = total_length / numNodes;
                         wstart = subrange_length * j + start;
-                        wstop = start + subrange_length - 1;
+                        wstop = wstart + subrange_length - 1;
 
                         // last delegator (even or not)
                         if (wstop > stop || j == numNodes - 1)
@@ -206,17 +222,50 @@ int main(int argc, char *argv[])
                         }
                         else
                         {
-                            wstop = wstart + rand() % (stop - wstart - (numNodes - (j + 1)) + 1);
+                            wstop = wstart + rand() % (stop - wstart - (numNodes - j - 1) + 1);
                         }
                     }
 
+                    // printf("created intervals for worker %d\n",j);
+
                     // write it pipes
-                    write(dwpipefd[i][writeend], &wstart, sizeof(int));
-                    write(dwpipefd[i][writeend], &wstop, sizeof(int));
+                    write(dwpipefd[j][writeend], &wstart, sizeof(int));
+                    write(dwpipefd[j][writeend], &wstop, sizeof(int));
                     // closing the writing pipes
-                    close(dwpipefd[i][writeend]);
+                    close(dwpipefd[j][writeend]);
+
+                    // printf("done writing intervals for worker %d\n",j);
                 }
             }
+
+            //delegator node after the for loop ends
+            if (j == numNodes)
+            {
+                //close write end worker -> del
+                close(wdpipefd[writeend]);
+                pid_t wpid;
+                int wstatus = 0;
+
+                //loop to read primes from all workers
+                while (1)
+                {
+                    int primenumber;
+                    int bcheck = read(wdpipefd[readend], &primenumber, sizeof(int));
+                    printf("read in delegator %d, value: %d\n", i, primenumber);
+                    if (bcheck==0)
+                    {
+                        break;
+                    }
+                    //write it to root
+                    write(drpipefd[writeend], &primenumber, sizeof(int));
+                }
+                close(wdpipefd[readend]);
+                close(drpipefd[writeend]);
+                while ((wpid = wait(&wstatus)) != -1)
+                    ;
+                exit(0);  
+            }
+            break;
         }
         // root process after forking
         else
@@ -254,13 +303,59 @@ int main(int argc, char *argv[])
                 }
             }
 
+            // printf("created intervals for delegator %d\n",i);
+
             // write it pipes
             write(rdpipefd[i][writeend], &start, sizeof(int));
             write(rdpipefd[i][writeend], &stop, sizeof(int));
             // closing the writing pipes
             close(rdpipefd[i][writeend]);
+            // printf("done writing intervals for delegator %d\n",i);
         }
     }
-
     // root process after for loop for forks - the main
+    if (i == numNodes)
+    {
+        printf("step1\n");
+        close(drpipefd[writeend]);
+        pid_t dpid;
+        int dstatus = 0;
+        int count = 0;
+
+        //array to store primes
+        int myprimes[upperbound-lowerbound+1];
+
+        //wait for all children
+        while (1)
+        {
+            printf("step2\n");
+            int myprime;
+            int bcheck = read(drpipefd[readend], &myprime, sizeof(int));
+            printf("%d\n", myprime);
+            if (bcheck==0)
+            {
+                printf("step3\n");
+                break;
+            }
+            printf("step4\n");
+            myprimes[count] = myprime;
+            printf("in array %d, variable %d\n",myprimes[count], myprime);
+
+            count++;
+        }
+
+        //close read end
+        close(drpipefd[readend]);
+
+        while ((dpid = wait(&dstatus)) != -1)
+            ;
+
+        //printing primes
+        for(int k = 0; k < count; k++){
+            printf("%d\n",myprimes[k]);
+        }
+        exit(0);
+        
+    }
+    
 }

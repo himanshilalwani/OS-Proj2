@@ -30,13 +30,13 @@ int main(int argc, char *argv[])
     ub = atoi(argv[2]);
     if ((lb < 1) || (lb > ub))
     {
-        printf("usage: prime2 lb ub\n");
+        printf("usage2 : prime2 lb ub\n");
         exit(1);
     }
     for (i = lb; i <= ub; i++){
         if (prime(i) == YES)
         {
-            printf("print2");
+            printf("prime detected %d\n",i);
             write(primeFD, &i, sizeof(int));
         }
     }
