@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
             close(dpipefd[i][0]);
 
             // print a message indicating which delegator process is being executed
-            printf("in delegator process %d\n", i);
+            // printf("in delegator process %d\n", i);
 
             // Dividing the range in N (numNodes) sub-intervals
             int total_length = upperbound - lowerbound + 1;
@@ -189,12 +189,12 @@ int main(int argc, char *argv[])
             }
 
             // Print the values received from the child processes
-            printf("In delegator process %d: random values =", i);
-            for (int o = 0; o < numNodes; o++)
-            {
-                printf(" %d", values[o]);
-            }
-            printf("\n");
+            // printf("In delegator process %d: random values =", i);
+            // for (int o = 0; o < numNodes; o++)
+            // {
+            //     printf(" %d", values[o]);
+            // }
+            // printf("\n");
 
             // Wait for all children processes to finish
             for (int j = 0; j < numNodes; j++)
@@ -220,19 +220,19 @@ int main(int argc, char *argv[])
     }
 
     // Initialize variables
-    int fvalues[numNodes * numNodes];
-    int findex = 0;
+    // int fvalues[numNodes * numNodes];
+    // int findex = 0;
 
-    // Read values from the pipe and store them in the fvalues array
-    for (int o = 0; o < numNodes; o++)
-    {
-        if (read(dpipefd[o][0], &fvalues[findex + o * numNodes], sizeof(int) * numNodes) == -1)
-        {
-            perror("read");
-            exit(EXIT_FAILURE);
-        }
-        close(dpipefd[o][0]); // Close the read end of the pipe
-    }
+    // // Read values from the pipe and store them in the fvalues array
+    // for (int o = 0; o < numNodes; o++)
+    // {
+    //     if (read(dpipefd[o][0], &fvalues[findex + o * numNodes], sizeof(int) * numNodes) == -1)
+    //     {
+    //         perror("read");
+    //         exit(EXIT_FAILURE);
+    //     }
+    //     close(dpipefd[o][0]); // Close the read end of the pipe
+    // }
 
     // Wait for all delegator processes to finish
     for (int i = 0; i < numNodes; i++)
@@ -241,12 +241,12 @@ int main(int argc, char *argv[])
     }
 
     // Print the final array combined in the parent
-    printf("Final array combined in parent:");
-    for (int o = 0; o < numNodes * numNodes; o++)
-    {
-        printf(" %d", fvalues[o]);
-    }
-    printf("\n");
+    // printf("Final array combined in parent:");
+    // for (int o = 0; o < numNodes * numNodes; o++)
+    // {
+    //     printf(" %d", fvalues[o]);
+    // }
+    // printf("\n");
 
     printf("Main process: all tasks completed.\n");
 
