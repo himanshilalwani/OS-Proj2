@@ -1,3 +1,6 @@
+/*Authors: Fatima Nadeem, Himanshi Lalwani
+OS Programming Assignment 2
+Prime function 2*/
 
 #include <stdio.h>
 #include <stdlib.h>

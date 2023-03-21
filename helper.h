@@ -1,3 +1,7 @@
+// Authors: Fatima Nadeem, Himanshi Lalwani
+// OS Programming Assignment 2
+// The helper header file
+
 #ifndef HELPER_FUNCTIONS
 #define HELPER_FUNCTIONS
 

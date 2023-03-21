@@ -1,3 +1,7 @@
+/*Authors: Fatima Nadeem, Himanshi Lalwani
+OS Programming Assignment 2
+The main code*/
+
 // include necessary header files
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,3 +1,7 @@
+/*Authors: Fatima Nadeem, Himanshi Lalwani
+OS Programming Assignment 2
+Helper code for sorting*/
+
 #include <stdio.h>
 #include "helper.h"
 
