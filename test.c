@@ -385,11 +385,15 @@ int main(int argc, char *argv[])
         int dstatus = 0;
         int count = 0;
         int timer_checker;
+        int x = 0;
         while (true)
         {
             double current_time;
             timer_checker = read(drpipefdt[0], &current_time, sizeof(double));
 
+            if(x==0){
+                minimum_time = current_time;
+            }
             if (timer_checker == 0)
                 break;
             average_time = average_time + current_time;

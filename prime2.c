@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         kill(r_pid, SIGUSR2);
     }
     t2 = (double)times(&tb2);
-    real_time = (t2 - t1) / ticspersec;
+    real_time = ((t2 - t1) / ticspersec)*1000;
 
     write(timeFD, &real_time, sizeof(real_time));
     close(timeFD);
