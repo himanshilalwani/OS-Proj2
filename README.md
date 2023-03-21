@@ -27,6 +27,8 @@ The input is expected in such a format:
 Signals
 
 The sig_handler() function is a signal handler that takes a signal number as an input and increments the corresponding signal counter. It is used for counting the number of SIGUSR1 and SIGUSR2 signals received by the program. The program then sets the signal handlers for SIGUSR1 and SIGUSR2 using the signal() function. The signal() function associates a signal handler function (in this case, sig_handler()) with a signal. When the program receives a signal, the corresponding signal handler function is called.
+Each delegator node is assigned a batch number which alternates between 0 and 1. This batch number determines which signal (SIGUSR1 or SIGUSR2) the children / worker nodes of the delegator node will send to the root node.
+It was also observed that some of the signals were getting lost - most likely due to multiple signals being sent at the same time. One of the ways to avoid the same could be using real time signals.
 
 Pipes
 
@@ -34,6 +36,8 @@ There is an array of pipes from root to N delegator nodes, rdpipefd. This is use
 There is an array of pipes from every delegator to its N worker nodes, dwpipefd. This is used to send information regarding range.
 There is one pipe for communication between N delegator nodes to root, drpipefd. This is used to send all the primes from all the delegators to root.
 There is one pipe for communication between N worker nodes to a delegator node, wdpipefd. This is used to send all the primes from all the children worker nodes to respective delegator.
+There is one pipe for communication between delegator nodes to the root for sharing the execution time.
+There is one pipe for communcation between worker nodes to the delegator node for sharing the execution time.
 
 Forking Layout
 
@@ -41,4 +45,5 @@ After creating the pipes, the program creates N delegator processes using the fo
 
 Time and Prime Calculation
 
-Finally, the program calculates the execution time of the program and sends it to the root process through the pipe. prime1.c and prime2.c are used using the startcode provided in assignment to handle the calculation of primes in circular manner and the tracking of time elapsed. The root process receives the primes and execution time from each delegator process and prints them to the console.
+Finally, the program calculates the execution time of the program and sends it to the root process through the pipe. prime1.c and prime2.c are used using the startercode provided in assignment to handle the calculation of primes in circular manner and the tracking of time elapsed. The root process receives the primes and execution time from each delegator process and prints them to the console.
+To calculate the execution time for each worker node, the starter code in the appendix has been used. The time is converted to milliseconds.
