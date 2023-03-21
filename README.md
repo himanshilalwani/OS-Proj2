@@ -4,6 +4,11 @@ Overview
 
 The code provided is a C program that can be used to generate prime numbers using multiple processes. It is a command-line utility that takes arguments as inputs and checks for errors in the arguments. The program creates N delegator processes and then creates N worker processes for each delegator process. Each worker process checks for prime numbers in the assigned range.
 
+How to run the code?
+- Use make command
+- Run the executable as follows: ./primes -l LowerBound -u UpperBound -[e|r] -n NumOfNodes
+
+
 Header Files
 
 The helper.h header file is a user-defined header file that provides helper functions (the merge sort for the final array to display primes) for this program.
