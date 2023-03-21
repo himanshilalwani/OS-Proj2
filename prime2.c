@@ -1,9 +1,11 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <math.h>
+#include <unistd.h>
 
 #define YES 1 
 #define NO 0
+#define primeFD 1222
 
 int prime(int n)
 {
@@ -21,18 +23,22 @@ int main(int argc, char *argv[])
     int lb = 0, ub = 0, i = 0;
     if ((argc != 3))
     {
-        printf("usage: prime1 lb ub\n");
+        printf("usage: prime2 lb ub\n");
         exit(1);
     }
     lb = atoi(argv[1]);
     ub = atoi(argv[2]);
     if ((lb < 1) || (lb > ub))
     {
-        printf("usage: prime1 lb ub\n");
+        printf("usage: prime2 lb ub\n");
         exit(1);
     }
-    for (i = lb; i <= ub; i++)
+    for (i = lb; i <= ub; i++){
         if (prime(i) == YES)
-            printf("%d ", i);
-    printf("\n");
+        {
+            printf("print2");
+            write(primeFD, &i, sizeof(int));
+        }
+    }
+    close(primeFD);
 }

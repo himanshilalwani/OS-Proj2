@@ -9,10 +9,11 @@
 
 #define readend 0
 #define writeend 1
+#define primeFD 1222
 
 int main(int argc, char *argv[])
 {
-    //check for argument numbers
+    // check for argument numbers
     if (argc != 8)
     {
         printf("Error: Missing arguments\n");
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    //flag types check
+    // flag types check
     if (strcmp(argv[1], "-l") != 0 || strcmp(argv[3], "-u") != 0 || (strcmp(argv[5], "-e") != 0 && strcmp(argv[5], "-r") != 0) || (strcmp(argv[6], "-n") != 0))
     {
         printf("Error: Invalid arguments\n");
@@ -28,29 +29,31 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    //convert arguments to variables
+    // convert arguments to variables
     int lowerbound = atoi(argv[2]);
     int upperbound = atoi(argv[4]);
     char *work = argv[5];
     int numNodes = atoi(argv[7]);
 
     int type; // 0 for equal and 1 for unequal
-    //for sub intervals
+    // for sub intervals
     int start;
-    int stop; 
-    int primetype; //cicrular manner the function to use
+    int stop;
+    int primetype; // cicrular manner the function to use 0 is prime1 1 is prime2
 
     stop = upperbound - 1;
 
-    //convert distibution type
-    if (strcmp(work, "-e") == 0){
+    // convert distibution type
+    if (strcmp(work, "-e") == 0)
+    {
         type = 0;
     }
-    else {
-        type = 1; 
+    else
+    {
+        type = 1;
     }
 
-    //create pipes for delegator -> root (one delegator at a time) used for sending primes
+    // create pipes for delegator -> root (one delegator at a time) used for sending primes
     int drpipefd[2];
 
     if (pipe(drpipefd) == -1)
@@ -61,6 +64,8 @@ int main(int argc, char *argv[])
 
     // create an array of pipes for each delegator process root -> delegator
     int rdpipefd[numNodes][2];
+
+    printf("step1");
 
     // create N delegator processes
     for (int i = 0; i < numNodes; i++)
@@ -89,21 +94,21 @@ int main(int argc, char *argv[])
             // close write end for root -> delegator
             close(rdpipefd[i][writeend]);
 
-            //reading the bounds for delegator
+            // reading the bounds for delegator
             read(rdpipefd[i][readend], &start, sizeof(int));
             read(rdpipefd[i][readend], &stop, sizeof(int));
 
-            //close reading end
+            // close reading end
             close(rdpipefd[i][readend]);
 
-            //create bounds for worker process
+            // create bounds for worker process
             int wstart = start;
             int wstop = start - 1;
 
-            //pipe to get primes from worker -> delegator
+            // pipe to get primes from worker -> delegator
             int wdpipefd[2];
 
-            //array of pipes from delegator -> workers
+            // array of pipes from delegator -> workers
             int dwpipefd[numNodes][2];
 
             if (pipe(wdpipefd) == -1)
@@ -112,7 +117,7 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
 
-            //for loop to create workers
+            // for loop to create workers
             for (int j = 0; j < numNodes; j++)
             {
                 // create a pipe for each worker process
@@ -122,79 +127,140 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
 
-                //forking
-                // create a new process (delegator)
+                // forking
+                //  create a new process (delegator)
                 pid_t wpid = fork();
                 if (wpid == -1)
                 {
                     perror("fork failure worker process");
                     exit(EXIT_FAILURE);
                 }
-                //decide type of the prime function cicular manner
-                primetype = ((i * numNodes) + j)%2;
+                // decide type of the prime function cicular manner
+                primetype = ((i * numNodes) + j) % 2;
 
-                //in worker process
+                // in worker process
                 if (wpid == 0)
                 {
-                    //close writing end for del -> work
+                    // close writing end for del -> work
                     close(dwpipefd[j][writeend]);
 
-                    //read from del
+                    // convert values to string
+                    char lb[30];
+                    char ub[30];
+
+                    // read the ranges from delegator
+                    read(dwpipefd[j][readend], &start, sizeof(int));
+                    read(dwpipefd[j][readend], &stop, sizeof(int));
+
+                    // covert int->string for passing in exec
+                    sprintf(lb, "%d", start);
+                    sprintf(ub, "%d", stop);
+
+                    // close reading end of del -> worker
+                    close(dwpipefd[j][readend]);
+                    // close reading end of worker -> del
+                    close(wdpipefd[readend]);
+
+                    dup2(wdpipefd[writeend], primeFD);
+
+                    // call executable based on worker type
+                    if (primetype == 0)
+                    {
+                        execlp("./primes1", "primes1", lb, ub, NULL);
+                    }
+                    else
+                    {
+                        execlp("./primes2", "primes2", lb, ub, NULL);
+                    }
+                    break;
                 }
-                
-                
+                // delegator process after forking
+                else
+                {
+                    // close the read end of del -> work
+                    close(dwpipefd[i][readend]);
 
+                    // check for distribution type
+                    // equal intervals
+                    if (type == 0)
+                    {
+                        // Dividing the range in N (numNodes) sub-intervals
+                        int total_length = stop - start + 1;
+                        int subrange_length = total_length / numNodes;
+                        wstart = subrange_length * j + start;
+                        wstop = start + subrange_length - 1;
+
+                        // last delegator (even or not)
+                        if (wstop > stop || j == numNodes - 1)
+                        {
+                            wstop = stop;
+                        }
+                    }
+                    // random intervals
+                    else
+                    {
+                        wstart = wstop + 1;
+                        if (j == numNodes - 1)
+                        {
+                            wstop = stop;
+                        }
+                        else
+                        {
+                            wstop = wstart + rand() % (stop - wstart - (numNodes - (j + 1)) + 1);
+                        }
+                    }
+
+                    // write it pipes
+                    write(dwpipefd[i][writeend], &wstart, sizeof(int));
+                    write(dwpipefd[i][writeend], &wstop, sizeof(int));
+                    // closing the writing pipes
+                    close(dwpipefd[i][writeend]);
+                }
             }
-            
-
-
-            
-
-
         }
-        //root process after forking
-        else{
-            //close the read end of root -> delegator
+        // root process after forking
+        else
+        {
+            // close the read end of root -> delegator
             close(rdpipefd[i][readend]);
 
-            //check for distribution type
-            //equal intervals
-            if(type==0){
+            // check for distribution type
+            // equal intervals
+            if (type == 0)
+            {
                 // Dividing the range in N (numNodes) sub-intervals
                 int total_length = upperbound - lowerbound + 1;
                 int subrange_length = total_length / numNodes;
                 start = subrange_length * i + lowerbound;
                 stop = start + subrange_length - 1;
 
-                //last delegator (even or not)
-                if(stop>upperbound || i == numNodes-1){
-                    stop = upperbound;
-                }
-
-            }
-            //random intervals
-            else{
-                start = stop + 1;
-                if (i==numNodes-1)
+                // last delegator (even or not)
+                if (stop > upperbound || i == numNodes - 1)
                 {
                     stop = upperbound;
                 }
-                else{
-                    stop = start + rand()%(upperbound-start-(numNodes-(i+1))+1);
+            }
+            // random intervals
+            else
+            {
+                start = stop + 1;
+                if (i == numNodes - 1)
+                {
+                    stop = upperbound;
+                }
+                else
+                {
+                    stop = start + rand() % (upperbound - start - (numNodes - (i + 1)) + 1);
                 }
             }
 
-            //write it pipes
-            write(rdpipefd[i][writeend],&start, sizeof(int));
-            write(rdpipefd[i][writeend],&stop, sizeof(int));
-            //closing the writing pipes
+            // write it pipes
+            write(rdpipefd[i][writeend], &start, sizeof(int));
+            write(rdpipefd[i][writeend], &stop, sizeof(int));
+            // closing the writing pipes
             close(rdpipefd[i][writeend]);
-
         }
-
-        //root process after for loop for forks
-
     }
 
-
+    // root process after for loop for forks - the main
 }

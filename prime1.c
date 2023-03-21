@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 #define YES 1
 #define NO 0
+#define primeFD 1222
 
 int prime(int n)
 {
@@ -31,7 +32,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
     for (i = lb; i <= ub; i++)
+    {
         if (prime(i) == YES)
-            printf("Prime: %d", i);
-    printf("\n");
+        {
+            printf("print");
+            write(primeFD, &i, sizeof(int));
+        }
+    }
+    close(primeFD);
 }
