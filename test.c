@@ -8,6 +8,8 @@
 #include <signal.h>
 #include <stdbool.h>
 
+#include "sort.h"
+
 #define readend 0
 #define writeend 1
 #define primeFD 1222
@@ -426,17 +428,20 @@ int main(int argc, char *argv[])
         while ((dpid = wait(&dstatus)) != -1)
             ;
 
+        //mergesort
+        mergeSort(myprimes,count);
+        printf("\nSorted Primes between %d and %d are:\n\n", lowerbound, upperbound);
         // printing primes
         for (int k = 0; k < count; k++)
         {
-            printf("Detected: %d\n", myprimes[k]);
+            printf("%d ", myprimes[k]);
         }
-        printf("Stats: \n");
-        printf("Min Time = %f\n", minimum_time);
-        printf("Max Time = %f\n", maximum_time);
+        printf("\n\nSTATS: \n");
+        printf("Minimum Time = %f\n", minimum_time);
+        printf("Maximum Time = %f\n", maximum_time);
         printf("Average Time = %f\n", average_time);
-        printf("Signals caught via SIGUSR1 = %d\n", number_signals1);
-        printf("Signals caught via SIGUSR2 = %d\n", number_signals2);
+        printf("\n\nTotal no of SIGUSR1 signals caught: %d\n", number_signals1);
+        printf("Total no of SIGUSR2 signals caught: %d\n\n", number_signals2);
         exit(0);
     }
 }

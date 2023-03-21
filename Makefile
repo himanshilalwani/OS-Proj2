@@ -1,16 +1,15 @@
 CC = gcc
-CFLAGS = -Wall -Werror -std=c99
 
-all: test prime1 prime2
+all: primes1 primes2 test
 
-test: test.c
-	$(CC) $(CFLAGS) test.c -o test
+primes1: prime1.c
+	$(CC) prime1.c -o primes1
 
-prime1: prime1.c
-	$(CC) $(CFLAGS) prime1.c -o prime1
+primes2: prime2.c
+	$(CC) prime2.c -o primes2 -lm
 
-prime2: prime2.c
-	$(CC) $(CFLAGS) prime2.c -o prime2
+test: test.c sort.c
+	$(CC) -o test test.c sort.c
 
 clean:
-	rm -f test prime1 prime2
+	rm -f primes1 primes2 test
