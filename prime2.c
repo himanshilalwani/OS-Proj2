@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -34,7 +35,6 @@ int main(int argc, char *argv[])
     }
     lb = atoi(argv[1]);
     ub = atoi(argv[2]);
-    // printf("Lower: %d, Upper: %d\n", lb, ub);
     if ((lb < 1) || (lb > ub))
     {
         printf("usage: prime2 lb ub root batch\n");
@@ -46,7 +46,6 @@ int main(int argc, char *argv[])
     {
         if (prime(i) == YES)
         {
-            // printf("print2 i: %d\n", i);
             write(primeFD, &i, sizeof(int));
         }
     }

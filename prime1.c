@@ -33,7 +33,6 @@ int main(int argc, char *argv[])
     }
     lb = atoi(argv[1]);
     ub = atoi(argv[2]);
-    // printf("Lower: %d, Upper: %d\n", lb, ub);
     if ((lb < 1) || (lb > ub))
     {
         printf(" usage : prime1 lb ub root batch\n");
@@ -45,7 +44,6 @@ int main(int argc, char *argv[])
     {
         if (prime(i) == YES)
         {
-            // printf("print i: %d\n", i);
             write(primeFD, &i, sizeof(int));
         }
     }
@@ -61,6 +59,7 @@ int main(int argc, char *argv[])
         kill(r_pid, SIGUSR2);
     }
     t2 = (double)times(&tb2);
+    
     real_time = ((t2 - t1) / ticspersec)*1000;
     write(timeFD, &real_time, sizeof(real_time));
     close(timeFD);

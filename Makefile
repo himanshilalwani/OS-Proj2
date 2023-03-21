@@ -8,8 +8,8 @@ primes1: prime1.c
 primes2: prime2.c
 	$(CC) prime2.c -o primes2 -lm
 
-test: test.c sort.c
-	$(CC) -o test test.c sort.c
+test: test.c helper.c
+	$(CC) -o test test.c helper.c
 
 clean:
 	rm -f primes1 primes2 test

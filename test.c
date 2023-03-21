@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#include "sort.h"
+#include "helper.h"
 
 #define readend 0
 #define writeend 1
@@ -50,6 +50,30 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // check for negative numbers
+    if (atoi(argv[2]) < 1)
+    {
+        printf("Error: Invalid Lower Bound, must be greater than 0\n");
+        return 1;
+    }
+    if (atoi(argv[4]) < 1)
+    {
+        printf("Error: Invalid Upper Bound, must be greater than 0\n");
+        return 1;
+    }
+    // check for range to be valid
+    if (atoi(argv[4]) < atoi(argv[2]))
+    {
+        printf("Error: Invalid Upper Bound, must be greater than Lower Bound\n");
+        return 1;
+    }
+    // check for num nodes to be valid int
+    if (atoi(argv[7]) < 1)
+    {
+        printf("Error: Invalid Number of Nodes, must be greater than 0\n");
+        return 1;
+    }
+
     int batch; // delegator batch
     signal(SIGUSR1, sig_handler);
     signal(SIGUSR2, sig_handler);
@@ -59,14 +83,14 @@ int main(int argc, char *argv[])
     char *work = argv[5];
     int numNodes = atoi(argv[7]);
 
-    int type; // 0 for equal and 1 for unequal
+    int type; // 0 for equal and 1 for unequal distribution of range
     // for sub intervals
     int start;
     int stop;
     int i;         // delegtor process count
     int primetype; // cicrular manner the function to use 0 is prime1 1 is prime2
 
-    stop = upperbound - 1;
+    stop = lowerbound - 1;
 
     // convert distibution type
     if (strcmp(work, "-e") == 0)
@@ -83,7 +107,7 @@ int main(int argc, char *argv[])
 
     if (pipe(drpipefd) == -1)
     {
-        perror("pipe");
+        perror("pipe error for del -> root for primes\n");
         exit(EXIT_FAILURE);
     }
 
@@ -91,14 +115,13 @@ int main(int argc, char *argv[])
     int drpipefdt[2];
     if (pipe(drpipefdt) == -1)
     {
-        perror("pipe");
+        perror("pipe error for del -> root for time\n");
         exit(EXIT_FAILURE);
     }
 
     // create an array of pipes for each delegator process root -> delegator
     int rdpipefd[numNodes][2];
 
-    // printf("error check for input and pipe d->r\n");
     pid_t root = getpid(); // root pid for sending signals
     // create N delegator processes
     for (i = 0; i < numNodes; i++)
@@ -106,24 +129,22 @@ int main(int argc, char *argv[])
         // create a pipe for each delegator process
         if (pipe(rdpipefd[i]) == -1)
         {
-            perror("pipe");
+            perror("pipe error for root -> del for information\n");
             exit(EXIT_FAILURE);
         }
 
         // create a new process (delegator)
         pid_t pid = fork();
-        // printf("created fork delegator\n");
 
         // check for errors creating the process
         if (pid == -1)
         {
-            perror("fork failure delegator process");
+            perror("fork failure for delegator process\n");
             exit(EXIT_FAILURE);
         }
         // in the delegator process
         else if (pid == 0)
         {
-            // printf("in delegator process %d\n", i);
             // close the read end of the pipe delegator -> root
             close(drpipefdt[readend]);
             close(drpipefd[readend]);
@@ -133,7 +154,6 @@ int main(int argc, char *argv[])
             // reading the bounds for delegator
             read(rdpipefd[i][readend], &start, sizeof(int));
             read(rdpipefd[i][readend], &stop, sizeof(int));
-            // printf("read bound for delegator %d: start: %d stop: %d\n", i, start, stop);
 
             // close reading end
             close(rdpipefd[i][readend]);
@@ -149,11 +169,9 @@ int main(int argc, char *argv[])
             // array of pipes from delegator -> workers
             int dwpipefd[numNodes][2];
 
-            // printf("pipes w->d\n");
-
             if (pipe(wdpipefd) == -1)
             {
-                perror("pipe");
+                perror("pipe error for workers -> del for primes\n");
                 exit(EXIT_FAILURE);
             }
 
@@ -162,7 +180,7 @@ int main(int argc, char *argv[])
 
             if (pipe(wdpipfdt) == -1)
             {
-                perror("pipe");
+                perror("pipe error for workers -> del for time\n");
                 exit(EXIT_FAILURE);
             }
             // for loop to create workers
@@ -171,14 +189,13 @@ int main(int argc, char *argv[])
                 // create a pipe for each worker process
                 if (pipe(dwpipefd[j]) == -1)
                 {
-                    perror("pipe");
+                    perror("pipe error for del -> worker for information\n");
                     exit(EXIT_FAILURE);
                 }
                 batch = j % 2; // determining batch associated with a particular delegate node
                 // forking
                 //  create a new process (delegator)
                 pid_t wpid = fork();
-                // printf("created fork worker\n");
 
                 if (wpid == -1)
                 {
@@ -191,8 +208,6 @@ int main(int argc, char *argv[])
                 // in worker process
                 if (wpid == 0)
                 {
-                    // printf("in worker process %d\n", j);
-
                     // close writing end for del -> work
                     close(dwpipefd[j][writeend]);
 
@@ -204,7 +219,6 @@ int main(int argc, char *argv[])
                     // read the ranges from delegator
                     read(dwpipefd[j][readend], &start, sizeof(int));
                     read(dwpipefd[j][readend], &stop, sizeof(int));
-                    // printf("read bound for worker %d: start: %d stop: %d\n", j, start, stop);
 
                     // covert int->string for passing in exec
                     sprintf(b, "%d", batch);
@@ -223,15 +237,11 @@ int main(int argc, char *argv[])
                     // call executable based on worker type
                     if (primetype == 0)
                     {
-                        // printf("running prime1 for worker %d\n",j);
                         execlp("./primes1", "primes1", lb, ub, r_pid, b, NULL);
-                        // printf("finished running prime1 for worker %d\n",j);
                     }
                     else
                     {
-                        // printf("running prime2 for worker %d\n",j);
                         execlp("./primes2", "primes2", lb, ub, r_pid, b, NULL);
-                        // printf("finished running prime2 for worker %d\n",j);
                     }
                     break;
                 }
@@ -271,15 +281,11 @@ int main(int argc, char *argv[])
                         }
                     }
 
-                    // printf("created intervals for worker %d\n",j);
-
-                    // write it pipes
+                    // write it to pipes
                     write(dwpipefd[j][writeend], &wstart, sizeof(int));
                     write(dwpipefd[j][writeend], &wstop, sizeof(int));
                     // closing the writing pipes
                     close(dwpipefd[j][writeend]);
-
-                    // printf("done writing intervals for worker %d\n",j);
                 }
             }
 
@@ -292,12 +298,11 @@ int main(int argc, char *argv[])
                 pid_t wpid;
                 int wstatus = 0;
 
+                // loop to get time feom all workers
                 while (true)
                 {
                     double real_time;
                     int tcheck = read(wdpipfdt[readend], &real_time, sizeof(double));
-
-                    // printf("read in delegator %d, value: %d\n", i, primenumber);
                     if (tcheck == 0)
                     {
                         break;
@@ -306,12 +311,12 @@ int main(int argc, char *argv[])
                     write(drpipefdt[writeend], &real_time, sizeof(double));
                 }
                 close(wdpipfdt[readend]);
+
                 // loop to read primes from all workers
                 while (true)
                 {
                     int primenumber;
                     int bcheck = read(wdpipefd[readend], &primenumber, sizeof(int));
-                    // printf("read in delegator %d, value: %d\n", i, primenumber);
                     if (bcheck == 0)
                     {
                         break;
@@ -364,15 +369,11 @@ int main(int argc, char *argv[])
                     stop = start + rand() % (upperbound - start - (numNodes - (i + 1)) + 1);
                 }
             }
-
-            // printf("created intervals for delegator %d\n",i);
-
             // write it pipes
             write(rdpipefd[i][writeend], &start, sizeof(int));
             write(rdpipefd[i][writeend], &stop, sizeof(int));
             // closing the writing pipes
             close(rdpipefd[i][writeend]);
-            // printf("done writing intervals for delegator %d\n",i);
         }
     }
     // root process after for loop for forks - the main
@@ -391,7 +392,8 @@ int main(int argc, char *argv[])
             double current_time;
             timer_checker = read(drpipefdt[0], &current_time, sizeof(double));
 
-            if(x==0){
+            if (x == 0)
+            {
                 minimum_time = current_time;
             }
             if (timer_checker == 0)
@@ -432,15 +434,17 @@ int main(int argc, char *argv[])
         while ((dpid = wait(&dstatus)) != -1)
             ;
 
-        //mergesort
-        mergeSort(myprimes,count);
+        // mergesort
+        mergeSort(myprimes, count);
         printf("\nSorted Primes between %d and %d are:\n\n", lowerbound, upperbound);
+
         // printing primes
         for (int k = 0; k < count; k++)
         {
             printf("%d ", myprimes[k]);
         }
         printf("\n\nSTATS: \n");
+        //time is in ms
         printf("Minimum Time = %f\n", minimum_time);
         printf("Maximum Time = %f\n", maximum_time);
         printf("Average Time = %f\n", average_time);
